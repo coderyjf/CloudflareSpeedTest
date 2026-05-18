@@ -9,17 +9,15 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/XIU2/CloudflareSpeedTest/task"
-	"github.com/XIU2/CloudflareSpeedTest/utils"
+	"github.com/coderyjf/CloudflareSpeedTest/task"
+	"github.com/coderyjf/CloudflareSpeedTest/utils"
 )
 
-var (
-	version, versionNew string
-)
+var version, versionNew string
 
 func init() {
 	var printVersion bool
-	var help = `
+	help := `
 CloudflareSpeedTest ` + version + `
 测试各个 CDN 或网站所有 IP 的延迟和速度，获取最快 IP (IPv4+IPv6)！
 https://github.com/XIU2/CloudflareSpeedTest
@@ -35,11 +33,13 @@ https://github.com/XIU2/CloudflareSpeedTest
         下载测速时间；单个 IP 下载测速最长时间，不能太短；(默认 10 秒)
     -tp 443
         指定测速端口；延迟测速/下载测速时使用的端口；(默认 443 端口)
-    -url https://cf.xiu2.xyz/url
-        指定测速地址；延迟测速(HTTPing)/下载测速时使用的地址，默认地址不保证可用性，建议自建；
+    -httping-url https://cf.xiu2.xyz/url
+        指定测速地址；延迟测速(HTTPing)时使用的地址，默认地址不保证可用性，建议自建；
+    -download-url https://cf.xiu2.xyz/url
+        指定测速地址；下载测速时使用的地址，默认地址不保证可用性，建议自建；
 
     -httping
-        切换测速模式；延迟测速模式改为 HTTP 协议，所用测试地址为 [-url] 参数；(默认 TCPing)
+        切换测速模式；延迟测速模式改为 HTTP 协议，所用测试地址为 [-httping-url] 参数；(默认 TCPing)
     -httping-code 200
         有效状态代码；HTTPing 延迟测速时网页返回的有效 HTTP 状态码，仅限一个；(默认 200 301 302)
     -cfcolo HKG,KHH,NRT,LAX,SEA,SJC,FRA,MAD
@@ -83,7 +83,8 @@ https://github.com/XIU2/CloudflareSpeedTest
 	flag.IntVar(&task.TestCount, "dn", 10, "下载测速数量")
 	flag.IntVar(&downloadTime, "dt", 10, "下载测速时间")
 	flag.IntVar(&task.TCPPort, "tp", 443, "指定测速端口")
-	flag.StringVar(&task.URL, "url", "https://cf.xiu2.xyz/url", "指定测速地址")
+	flag.StringVar(&task.HttpingURL, "httping-url", "https://cf.xiu2.xyz/url", "指定延迟测速地址")
+	flag.StringVar(&task.DownloadURL, "download-url", "https://cf.xiu2.xyz/url", "指定下载测速地址")
 
 	flag.BoolVar(&task.Httping, "httping", false, "切换测速模式")
 	flag.IntVar(&task.HttpingStatusCode, "httping-code", 0, "有效状态代码")

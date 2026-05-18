@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/XIU2/CloudflareSpeedTest/utils"
+	"github.com/coderyjf/CloudflareSpeedTest/utils"
 )
 
 const (
@@ -35,6 +35,9 @@ type Ping struct {
 }
 
 func checkPingDefault() {
+	if HttpingURL == "" {
+		HttpingURL = defaultURL
+	}
 	if Routines <= 0 {
 		Routines = defaultRoutines
 	}

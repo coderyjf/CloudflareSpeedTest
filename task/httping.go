@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/XIU2/CloudflareSpeedTest/utils"
+	"github.com/coderyjf/CloudflareSpeedTest/utils"
 )
 
 var (
@@ -20,6 +20,7 @@ var (
 	HttpingStatusCode     int
 	HttpingCFColo         string
 	HttpingCFColomap      *sync.Map
+	HttpingURL            = defaultURL
 	RegexpColoIATACode    = regexp.MustCompile(`[A-Z]{3}`)  // 匹配 IATA 机场地区码（俗称 机场三字码）的正则表达式
 	RegexpColoCountryCode = regexp.MustCompile(`[A-Z]{2}`)  // 匹配国家地区码的正则表达式（如 US、CN、UK 等）
 	RegexpColoGcore       = regexp.MustCompile(`^[a-z]{2}`) // 匹配城市地区码的正则表达式（小写，如 us、cn、uk 等）
@@ -31,7 +32,7 @@ func (p *Ping) httping(ip *net.IPAddr) (int, time.Duration, string) {
 		Timeout: time.Second * 2,
 		Transport: &http.Transport{
 			DialContext: getDialContext(ip),
-			//TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // 跳过证书验证
+			// TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // 跳过证书验证
 		},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse // 阻止重定向
@@ -42,10 +43,10 @@ func (p *Ping) httping(ip *net.IPAddr) (int, time.Duration, string) {
 	// 先访问一次获得 HTTP 状态码 及 地区码
 	var colo string
 	{
-		request, err := http.NewRequest(http.MethodHead, URL, nil)
+		request, err := http.NewRequest(http.MethodHead, HttpingURL, nil)
 		if err != nil {
 			if utils.Debug { // 调试模式下，输出更多信息
-				utils.Red.Printf("[调试] IP: %s, 延迟测速请求创建失败，错误信息: %v, 测速地址: %s\n", ip.String(), err, URL)
+				utils.Red.Printf("[调试] IP: %s, 延迟测速请求创建失败，错误信息: %v, 测速地址: %s\n", ip.String(), err, HttpingURL)
 			}
 			return 0, 0, ""
 		}
@@ -53,25 +54,25 @@ func (p *Ping) httping(ip *net.IPAddr) (int, time.Duration, string) {
 		response, err := hc.Do(request)
 		if err != nil {
 			if utils.Debug { // 调试模式下，输出更多信息
-				utils.Red.Printf("[调试] IP: %s, 延迟测速失败，错误信息: %v, 测速地址: %s\n", ip.String(), err, URL)
+				utils.Red.Printf("[调试] IP: %s, 延迟测速失败，错误信息: %v, 测速地址: %s\n", ip.String(), err, HttpingURL)
 			}
 			return 0, 0, ""
 		}
 		defer response.Body.Close()
 
-		//fmt.Println("IP:", ip, "StatusCode:", response.StatusCode, response.Request.URL)
+		// fmt.Println("IP:", ip, "StatusCode:", response.StatusCode, response.Request.URL)
 		// 如果未指定的 HTTP 状态码，或指定的状态码不合规，则默认只认为 200、301、302 才算 HTTPing 通过
 		if HttpingStatusCode == 0 || HttpingStatusCode < 100 && HttpingStatusCode > 599 {
 			if response.StatusCode != 200 && response.StatusCode != 301 && response.StatusCode != 302 {
 				if utils.Debug { // 调试模式下，输出更多信息
-					utils.Red.Printf("[调试] IP: %s, 延迟测速终止，HTTP 状态码: %d, 测速地址: %s\n", ip.String(), response.StatusCode, URL)
+					utils.Red.Printf("[调试] IP: %s, 延迟测速终止，HTTP 状态码: %d, 测速地址: %s\n", ip.String(), response.StatusCode, HttpingURL)
 				}
 				return 0, 0, ""
 			}
 		} else {
 			if response.StatusCode != HttpingStatusCode {
 				if utils.Debug { // 调试模式下，输出更多信息
-					utils.Red.Printf("[调试] IP: %s, 延迟测速终止，HTTP 状态码: %d, 指定的 HTTP 状态码 %d, 测速地址: %s\n", ip.String(), response.StatusCode, HttpingStatusCode, URL)
+					utils.Red.Printf("[调试] IP: %s, 延迟测速终止，HTTP 状态码: %d, 指定的 HTTP 状态码 %d, 测速地址: %s\n", ip.String(), response.StatusCode, HttpingStatusCode, HttpingURL)
 				}
 				return 0, 0, ""
 			}
@@ -99,7 +100,7 @@ func (p *Ping) httping(ip *net.IPAddr) (int, time.Duration, string) {
 	success := 0
 	var delay time.Duration
 	for i := 0; i < PingTimes; i++ {
-		request, err := http.NewRequest(http.MethodHead, URL, nil)
+		request, err := http.NewRequest(http.MethodHead, HttpingURL, nil)
 		if err != nil {
 			log.Fatal("意外的错误，情报告：", err)
 			return 0, 0, ""

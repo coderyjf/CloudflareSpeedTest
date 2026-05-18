@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/XIU2/CloudflareSpeedTest/utils"
+	"github.com/coderyjf/CloudflareSpeedTest/utils"
 
 	"github.com/VividCortex/ewma"
 )
@@ -25,17 +25,17 @@ const (
 )
 
 var (
-	URL     = defaultURL
-	Timeout = defaultTimeout
-	Disable = defaultDisableDownload
+	DownloadURL = defaultURL
+	Timeout     = defaultTimeout
+	Disable     = defaultDisableDownload
 
 	TestCount = defaultTestNum
 	MinSpeed  = defaultMinSpeed
 )
 
 func checkDownloadDefault() {
-	if URL == "" {
-		URL = defaultURL
+	if DownloadURL == "" {
+		DownloadURL = defaultURL
 	}
 	if Timeout <= 0 {
 		Timeout = defaultTimeout
@@ -156,10 +156,10 @@ func downloadHandler(ip *net.IPAddr) (float64, string) {
 		},
 	}
 	defer client.CloseIdleConnections()
-	req, err := http.NewRequest("GET", URL, nil)
+	req, err := http.NewRequest("GET", DownloadURL, nil)
 	if err != nil {
 		if utils.Debug { // 调试模式下，输出更多信息
-			utils.Red.Printf("[调试] IP: %s, 下载测速请求创建失败，错误信息: %v, 下载测速地址: %s\n", ip.String(), err, URL)
+			utils.Red.Printf("[调试] IP: %s, 下载测速请求创建失败，错误信息: %v, 下载测速地址: %s\n", ip.String(), err, DownloadURL)
 		}
 		return 0.0, ""
 	}
@@ -169,14 +169,14 @@ func downloadHandler(ip *net.IPAddr) (float64, string) {
 	response, err := client.Do(req)
 	if err != nil {
 		if utils.Debug { // 调试模式下，输出更多信息
-			printDownloadDebugInfo(ip, err, 0, URL, lastRedirectURL, response)
+			printDownloadDebugInfo(ip, err, 0, DownloadURL, lastRedirectURL, response)
 		}
 		return 0.0, ""
 	}
 	defer response.Body.Close()
 	if response.StatusCode != 200 {
 		if utils.Debug { // 调试模式下，输出更多信息
-			printDownloadDebugInfo(ip, nil, response.StatusCode, URL, lastRedirectURL, response)
+			printDownloadDebugInfo(ip, nil, response.StatusCode, DownloadURL, lastRedirectURL, response)
 		}
 		return 0.0, ""
 	}
@@ -197,7 +197,7 @@ func downloadHandler(ip *net.IPAddr) (float64, string) {
 		lastContentRead int64 = 0
 	)
 
-	var nextTime = timeStart.Add(timeSlice * time.Duration(timeCounter))
+	nextTime := timeStart.Add(timeSlice * time.Duration(timeCounter))
 	e := ewma.NewMovingAverage()
 
 	// 循环计算，如果文件下载完了（两者相等），则退出循环（终止测速）

@@ -1,0 +1,181 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'      # 触发条件：推送 v 开头的 tag
+  workflow_dispatch: # 支持手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macOS
+          - name: cfst_darwin_amd64
+            goos: darwin
+            goarch: amd64
+            output: cfst
+            archive: zip
+          - name: cfst_darwin_arm64
+            goos: darwin
+            goarch: arm64
+            output: cfst
+            archive: zip
+          # macOS old
+          - name: cfst_darwin_amd64_old
+            goos: darwin
+            goarch: amd64
+            output: cfst
+            archive: zip
+            old: true
+          - name: cfst_darwin_arm64_old
+            goos: darwin
+            goarch: arm64
+            output: cfst
+            archive: zip
+            old: true
+          # Linux
+          - name: cfst_linux_386
+            goos: linux
+            goarch: 386
+            archive: tar.gz
+          - name: cfst_linux_amd64
+            goos: linux
+            goarch: amd64
+            archive: tar.gz
+          - name: cfst_linux_arm64
+            goos: linux
+            goarch: arm64
+            archive: tar.gz
+          - name: cfst_linux_armv5
+            goos: linux
+            goarch: arm
+            goarm: 5
+            archive: tar.gz
+          - name: cfst_linux_armv6
+            goos: linux
+            goarch: arm
+            goarm: 6
+            archive: tar.gz
+          - name: cfst_linux_armv7
+            goos: linux
+            goarch: arm
+            goarm: 7
+            archive: tar.gz
+          - name: cfst_linux_mips
+            goos: linux
+            goarch: mips
+            gomips: softfloat
+            archive: tar.gz
+          - name: cfst_linux_mips64
+            goos: linux
+            goarch: mips64
+            gomips64: softfloat
+            archive: tar.gz
+          - name: cfst_linux_mipsle
+            goos: linux
+            goarch: mipsle
+            gomips: softfloat
+            archive: tar.gz
+          - name: cfst_linux_mips64le
+            goos: linux
+            goarch: mips64le
+            gomips64: softfloat
+            archive: tar.gz
+          # Windows
+          - name: cfst_windows_386
+            goos: windows
+            goarch: 386
+            ext: .exe
+            archive: zip
+          - name: cfst_windows_amd64
+            goos: windows
+            goarch: amd64
+            ext: .exe
+            archive: zip
+          - name: cfst_windows_arm64
+            goos: windows
+            goarch: arm64
+            ext: .exe
+            archive: zip
+          # Windows old
+          - name: cfst_windows_386_old
+            goos: windows
+            goarch: 386
+            ext: .exe
+            archive: zip
+            old: true
+          - name: cfst_windows_amd64_old
+            goos: windows
+            goarch: amd64
+            ext: .exe
+            archive: zip
+            old: true
+
+    steps:
+      # 1️⃣ 拉取代码
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 2️⃣ 安装 Go
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      # 3️⃣ 下载依赖
+      - name: Download Dependencies
+        run: go mod download
+
+      # 4️⃣ 编译
+      - name: Build
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+          GOMIPS: ${{ matrix.gomips }}
+          GOMIPS64: ${{ matrix.gomips64 }}
+          CGO_ENABLED: 0
+          GOAMD64: v1
+          MACOSX_DEPLOYMENT_TARGET: ${{ matrix.old && '10.13' || '11' }}
+        run: |
+          mkdir -p build/${{ matrix.name }}
+          BIN_NAME=cfst${{ matrix.ext }}
+          LDFLAGS="-s -w"
+          if [ "${{ matrix.old }}" = "true" ]; then
+            export GODEBUG=asyncpreemptoff=1
+          fi
+          go build -trimpath -ldflags="$LDFLAGS" -o build/${{ matrix.name }}/$BIN_NAME .
+
+      # 5️⃣ 打包 zip
+      - name: Package zip
+        if: matrix.archive == 'zip'
+        run: |
+          cd build
+          zip -r ${{ matrix.name }}.zip ${{ matrix.name }}
+
+      # 6️⃣ 打包 tar.gz
+      - name: Package tar.gz
+        if: matrix.archive == 'tar.gz'
+        run: |
+          cd build
+          tar -czf ${{ matrix.name }}.tar.gz ${{ matrix.name }}
+
+      # 7️⃣ 上传 Release
+      - name: Upload Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            build/*.zip
+            build/*.tar.gz
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
