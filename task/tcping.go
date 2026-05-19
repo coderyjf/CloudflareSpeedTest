@@ -2,6 +2,7 @@ package task
 
 import (
 	"fmt"
+	"math"
 	"net"
 	"sort"
 	"strconv"
@@ -47,6 +48,17 @@ func checkPingDefault() {
 	if PingTimes <= 0 {
 		PingTimes = defaultPingTimes
 	}
+}
+
+func calcJitterStd(avgDelay time.Duration, delays []time.Duration, recv int) float64 {
+	avgMs := float32(avgDelay) / float32(time.Millisecond)
+	var sumSq float32
+	for _, d := range delays {
+		dMs := float32(d) / float32(time.Millisecond)
+		diff := dMs - avgMs
+		sumSq += diff * diff
+	}
+	return math.Sqrt(float64(sumSq / float32(recv)))
 }
 
 func NewPing() *Ping {
@@ -107,16 +119,16 @@ func (p *Ping) tcping(ip *net.IPAddr) (bool, time.Duration) {
 }
 
 // pingReceived pingTotalTime
-func (p *Ping) checkConnection(ip *net.IPAddr) (recv int, totalDelay time.Duration, colo string) {
+func (p *Ping) checkConnection(ip *net.IPAddr) (recv int, delays []time.Duration, colo string) {
 	if Httping {
-		recv, totalDelay, colo = p.httping(ip)
+		recv, delays, colo = p.httping(ip)
 		return
 	}
 	colo = "" // TCPing 不获取 colo
 	for i := 0; i < PingTimes; i++ {
 		if ok, delay := p.tcping(ip); ok {
 			recv++
-			totalDelay += delay
+			delays = append(delays, delay)
 		}
 	}
 	return
@@ -132,20 +144,26 @@ func (p *Ping) appendIPData(data *utils.PingData) {
 
 // handle tcping
 func (p *Ping) tcpingHandler(ip *net.IPAddr) {
-	recv, totalDlay, colo := p.checkConnection(ip)
+	recv, delays, colo := p.checkConnection(ip)
 	nowAble := len(p.csv)
 	if recv != 0 {
 		nowAble++
-	}
-	p.bar.Grow(1, strconv.Itoa(nowAble))
-	if recv == 0 {
+	} else {
 		return
 	}
+	p.bar.Grow(1, strconv.Itoa(nowAble))
+	var totalDelay time.Duration
+	for _, d := range delays {
+		totalDelay += d
+	}
+	avgDelay := totalDelay / time.Duration(recv)
+	jitter := calcJitterStd(avgDelay, delays, recv)
 	data := &utils.PingData{
 		IP:       ip,
 		Sended:   PingTimes,
 		Received: recv,
-		Delay:    totalDlay / time.Duration(recv),
+		Delay:    avgDelay,
+		Jitter:   jitter,
 		Colo:     colo,
 	}
 	p.appendIPData(data)

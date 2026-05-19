@@ -27,7 +27,7 @@ var (
 )
 
 // pingReceived pingTotalTime
-func (p *Ping) httping(ip *net.IPAddr) (int, time.Duration, string) {
+func (p *Ping) httping(ip *net.IPAddr) (int, []time.Duration, string) {
 	hc := http.Client{
 		Timeout: time.Second * 2,
 		Transport: &http.Transport{
@@ -48,7 +48,7 @@ func (p *Ping) httping(ip *net.IPAddr) (int, time.Duration, string) {
 			if utils.Debug { // 调试模式下，输出更多信息
 				utils.Red.Printf("[调试] IP: %s, 延迟测速请求创建失败，错误信息: %v, 测速地址: %s\n", ip.String(), err, HttpingURL)
 			}
-			return 0, 0, ""
+			return 0, []time.Duration{}, ""
 		}
 		request.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.80 Safari/537.36")
 		response, err := hc.Do(request)
@@ -56,7 +56,7 @@ func (p *Ping) httping(ip *net.IPAddr) (int, time.Duration, string) {
 			if utils.Debug { // 调试模式下，输出更多信息
 				utils.Red.Printf("[调试] IP: %s, 延迟测速失败，错误信息: %v, 测速地址: %s\n", ip.String(), err, HttpingURL)
 			}
-			return 0, 0, ""
+			return 0, []time.Duration{}, ""
 		}
 		defer response.Body.Close()
 
@@ -67,14 +67,14 @@ func (p *Ping) httping(ip *net.IPAddr) (int, time.Duration, string) {
 				if utils.Debug { // 调试模式下，输出更多信息
 					utils.Red.Printf("[调试] IP: %s, 延迟测速终止，HTTP 状态码: %d, 测速地址: %s\n", ip.String(), response.StatusCode, HttpingURL)
 				}
-				return 0, 0, ""
+				return 0, []time.Duration{}, ""
 			}
 		} else {
 			if response.StatusCode != HttpingStatusCode {
 				if utils.Debug { // 调试模式下，输出更多信息
 					utils.Red.Printf("[调试] IP: %s, 延迟测速终止，HTTP 状态码: %d, 指定的 HTTP 状态码 %d, 测速地址: %s\n", ip.String(), response.StatusCode, HttpingStatusCode, HttpingURL)
 				}
-				return 0, 0, ""
+				return 0, []time.Duration{}, ""
 			}
 		}
 
@@ -91,19 +91,19 @@ func (p *Ping) httping(ip *net.IPAddr) (int, time.Duration, string) {
 				if utils.Debug { // 调试模式下，输出更多信息
 					utils.Red.Printf("[调试] IP: %s, 地区码不匹配: %s\n", ip.String(), colo)
 				}
-				return 0, 0, ""
+				return 0, []time.Duration{}, ""
 			}
 		}
 	}
 
 	// 循环测速计算延迟
 	success := 0
-	var delay time.Duration
+	delays := make([]time.Duration, 0, PingTimes)
 	for i := 0; i < PingTimes; i++ {
 		request, err := http.NewRequest(http.MethodHead, HttpingURL, nil)
 		if err != nil {
 			log.Fatal("意外的错误，情报告：", err)
-			return 0, 0, ""
+			return 0, []time.Duration{}, ""
 		}
 		request.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.80 Safari/537.36")
 		if i == PingTimes-1 {
@@ -118,10 +118,10 @@ func (p *Ping) httping(ip *net.IPAddr) (int, time.Duration, string) {
 		io.Copy(io.Discard, response.Body)
 		_ = response.Body.Close()
 		duration := time.Since(startTime)
-		delay += duration
+		delays = append(delays, duration)
 	}
 
-	return success, delay, colo
+	return success, delays, colo
 }
 
 func MapColoMap() *sync.Map {

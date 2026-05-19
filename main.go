@@ -20,7 +20,7 @@ func init() {
 	help := `
 CloudflareSpeedTest ` + version + `
 测试各个 CDN 或网站所有 IP 的延迟和速度，获取最快 IP (IPv4+IPv6)！
-https://github.com/XIU2/CloudflareSpeedTest
+https://github.com/coderyjf/CloudflareSpeedTest
 
 参数：
     -n 200
@@ -51,6 +51,8 @@ https://github.com/XIU2/CloudflareSpeedTest
         平均延迟下限；只输出高于指定平均延迟的 IP；(默认 0 ms)
     -tlr 0.2
         丢包几率上限；只输出低于/等于指定丢包率的 IP，范围 0.00~1.00，0 过滤掉任何丢包的 IP；(默认 1.00)
+    -tj 50.0
+        延迟抖动上限；只输出低于/等于指定延迟抖动的 IP，范围 0.00~200.00，0 过滤掉任何延迟抖动的 IP；(默认 200 ms)
     -sl 5
         下载速度下限；只输出高于指定下载速度的 IP，凑够指定数量 [-dn] 才会停止测速；(默认 0.00 MB/s)
 
@@ -77,7 +79,7 @@ https://github.com/XIU2/CloudflareSpeedTest
         打印帮助说明
 `
 	var minDelay, maxDelay, downloadTime int
-	var maxLossRate float64
+	var maxLossRate, maxJitter float64
 	flag.IntVar(&task.Routines, "n", 200, "延迟测速线程")
 	flag.IntVar(&task.PingTimes, "t", 4, "延迟测速次数")
 	flag.IntVar(&task.TestCount, "dn", 10, "下载测速数量")
@@ -93,6 +95,7 @@ https://github.com/XIU2/CloudflareSpeedTest
 	flag.IntVar(&maxDelay, "tl", 9999, "平均延迟上限")
 	flag.IntVar(&minDelay, "tll", 0, "平均延迟下限")
 	flag.Float64Var(&maxLossRate, "tlr", 1, "丢包几率上限")
+	flag.Float64Var(&maxJitter, "tj", 200, "延迟抖动上限")
 	flag.Float64Var(&task.MinSpeed, "sl", 0, "下载速度下限")
 
 	flag.IntVar(&utils.PrintNum, "p", 10, "显示结果数量")
@@ -115,6 +118,7 @@ https://github.com/XIU2/CloudflareSpeedTest
 	utils.InputMaxDelay = time.Duration(maxDelay) * time.Millisecond
 	utils.InputMinDelay = time.Duration(minDelay) * time.Millisecond
 	utils.InputMaxLossRate = float32(maxLossRate)
+	utils.InputMaxJitter = maxJitter
 	task.Timeout = time.Duration(downloadTime) * time.Second
 	task.HttpingCFColomap = task.MapColoMap()
 
@@ -123,7 +127,7 @@ https://github.com/XIU2/CloudflareSpeedTest
 		fmt.Println("检查版本更新中...")
 		checkUpdate()
 		if versionNew != "" {
-			utils.Yellow.Printf("*** 发现新版本 [%s]！请前往 [https://github.com/XIU2/CloudflareSpeedTest] 更新！ ***", versionNew)
+			utils.Yellow.Printf("*** 发现新版本 [%s]！请前往 [https://github.com/coderyjf/CloudflareSpeedTest] 更新！ ***", versionNew)
 		} else {
 			utils.Green.Println("当前为最新版本 [" + version + "]！")
 		}
@@ -134,10 +138,10 @@ https://github.com/XIU2/CloudflareSpeedTest
 func main() {
 	task.InitRandSeed() // 置随机数种子
 
-	fmt.Printf("# XIU2/CloudflareSpeedTest %s \n\n", version)
+	fmt.Printf("# coderyjf/CloudflareSpeedTest %s \n\n", version)
 
-	// 开始延迟测速 + 过滤延迟/丢包
-	pingData := task.NewPing().Run().FilterDelay().FilterLossRate()
+	// 开始延迟测速 + 过滤延迟/丢包/延迟抖动
+	pingData := task.NewPing().Run().FilterDelay().FilterLossRate().FilterJitter()
 	// 开始下载测速
 	speedData := task.TestDownloadSpeed(pingData)
 	utils.ExportCsv(speedData) // 输出文件
@@ -151,7 +155,7 @@ func endPrint() {
 		return
 	}
 	if runtime.GOOS == "windows" { // 如果是 Windows 系统，则需要按下 回车键 或 Ctrl+C 退出（避免通过双击运行时，测速完毕后直接关闭）
-		fmt.Printf("按下 回车键 或 Ctrl+C 退出。")
+		fmt.Printf("按下 回车键 或 Ctrl+C 退出")
 		fmt.Scanln()
 	}
 }
