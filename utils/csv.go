@@ -28,6 +28,15 @@ var (
 	Debug            = false // 是否开启调试模式
 )
 
+var (
+	TotalIPCount          int // 初始IP数量
+	DelayTestedIPCount    int // 延迟测速后IP数量
+	DelayFilteredIPCount  int // 延迟过滤后IP数量
+	LossFilteredIPCount   int // 丢包率过滤后IP数量
+	JitterFilteredIPCount int // 延迟抖动过滤后IP数量
+	SpeedTestedIPCount    int // 下载测速IP数量
+)
+
 // 是否打印测试结果
 func NoPrintResult() bool {
 	return PrintNum == 0
@@ -92,6 +101,7 @@ func ExportCsv(data []CloudflareIPData) {
 	defer fp.Close()
 	w := csv.NewWriter(fp) // 创建一个新的写入文件流
 	_ = w.Write([]string{"IP 地址", "已发送", "已接收", "丢包率", "平均延迟(ms)", "抖动(ms)", "下载速度(MB/s)", "地区码"})
+	_ = w.Write([]string{strconv.Itoa(TotalIPCount), strconv.Itoa(TotalIPCount), strconv.Itoa(DelayTestedIPCount), strconv.Itoa(LossFilteredIPCount), strconv.Itoa(DelayFilteredIPCount), strconv.Itoa(JitterFilteredIPCount), strconv.Itoa(SpeedTestedIPCount), strconv.Itoa(DelayTestedIPCount)})
 	_ = w.WriteAll(convertToString(data))
 	w.Flush()
 }
@@ -124,6 +134,7 @@ func (s PingDelaySet) FilterDelay() (data PingDelaySet) {
 		}
 		data = append(data, v) // 延迟满足条件时，添加到新数组中
 	}
+	DelayFilteredIPCount = len(data)
 	return
 }
 
@@ -138,6 +149,7 @@ func (s PingDelaySet) FilterLossRate() (data PingDelaySet) {
 		}
 		data = append(data, v) // 丢包率满足条件时，添加到新数组中
 	}
+	LossFilteredIPCount = len(data)
 	return
 }
 
@@ -152,6 +164,7 @@ func (s PingDelaySet) FilterJitter() (data PingDelaySet) {
 		}
 		data = append(data, v) // 丢包率满足条件时，添加到新数组中
 	}
+	JitterFilteredIPCount = len(data)
 	return
 }
 

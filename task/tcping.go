@@ -64,6 +64,7 @@ func calcJitterStd(avgDelay time.Duration, delays []time.Duration, recv int) flo
 func NewPing() *Ping {
 	checkPingDefault()
 	ips := loadIPRanges()
+	utils.TotalIPCount = len(ips)
 	return &Ping{
 		wg:      &sync.WaitGroup{},
 		m:       &sync.Mutex{},
@@ -91,6 +92,7 @@ func (p *Ping) Run() utils.PingDelaySet {
 	p.wg.Wait()
 	p.bar.Done()
 	sort.Sort(p.csv)
+	utils.DelayTestedIPCount = len(p.csv)
 	return p.csv
 }
 
