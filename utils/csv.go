@@ -120,9 +120,11 @@ type PingDelaySet []CloudflareIPData
 // 延迟条件过滤
 func (s PingDelaySet) FilterDelay() (data PingDelaySet) {
 	if InputMaxDelay > maxDelay || InputMinDelay < minDelay { // 当输入的延迟条件不在默认范围内时，不进行过滤
+		DelayFilteredIPCount = len(s)
 		return s
 	}
 	if InputMaxDelay == maxDelay && InputMinDelay == minDelay { // 当输入的延迟条件为默认值时，不进行过滤
+		DelayFilteredIPCount = len(s)
 		return s
 	}
 	for _, v := range s {
@@ -141,6 +143,7 @@ func (s PingDelaySet) FilterDelay() (data PingDelaySet) {
 // 丢包条件过滤
 func (s PingDelaySet) FilterLossRate() (data PingDelaySet) {
 	if InputMaxLossRate >= maxLossRate { // 当输入的丢包条件为默认值时，不进行过滤
+		LossFilteredIPCount = len(s)
 		return s
 	}
 	for _, v := range s {
@@ -156,6 +159,7 @@ func (s PingDelaySet) FilterLossRate() (data PingDelaySet) {
 // 延迟抖动条件过滤
 func (s PingDelaySet) FilterJitter() (data PingDelaySet) {
 	if InputMaxJitter >= maxJitter { // 当输入的延迟抖动条件为默认值时，不进行过滤
+		JitterFilteredIPCount = len(s)
 		return s
 	}
 	for _, v := range s {
