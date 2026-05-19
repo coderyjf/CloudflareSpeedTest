@@ -202,13 +202,15 @@ jobs:
         shell: bash
         run: |
           TAG=${GITHUB_REF_NAME#refs/tags/}
-          MSG=$(git cat-file tag $TAG 2>/dev/null | sed '1,/^\s*$/d')
+          MSG=$(git for-each-ref refs/tags/$TAG --format='%(contents)')
           if [ -z "$MSG" ]; then
             MSG=$(git log -1 --pretty=%B $TAG)
           fi
-          echo "BODY<<EOF" >> $GITHUB_OUTPUT
-          echo "$MSG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "BODY<<EOF"
+            echo "$MSG"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       # 4️⃣ 发布 Release
       - name: Publish Release
