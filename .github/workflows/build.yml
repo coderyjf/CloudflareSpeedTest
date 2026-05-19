@@ -169,13 +169,47 @@ jobs:
           cd build
           tar -czf ${{ matrix.name }}.tar.gz ${{ matrix.name }}
 
-      # 7️⃣ 上传 Release
-      - name: Upload Release
-        uses: softprops/action-gh-release@v2
+      # 7️⃣ 上传 Artifact
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: ${{ matrix.name }}
+          path: |
             build/*.zip
             build/*.tar.gz
-          generate_release_notes: true
+
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ 拉取完整 git 历史（必须 fetch-depth: 0）
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2️⃣ 下载所有 artifact
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: build
+
+      # 3️⃣ 获取 annotated tag 内容
+      - name: Extract Tag Message
+        id: tagmsg
+        shell: bash
+        run: |
+          echo "BODY<<EOF" >> $GITHUB_OUTPUT
+          git for-each-ref refs/tags/${GITHUB_REF_NAME} --format='%(contents)' >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # 4️⃣ 发布 Release
+      - name: Publish Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/**/*
+          body: ${{ steps.tagmsg.outputs.BODY }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
