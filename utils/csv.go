@@ -177,14 +177,14 @@ func (s PingDelaySet) Len() int {
 }
 
 // 统一评分模型（类似 ISP QoS）
-// 1ms 抖动 = 3ms 延迟, 1%丢包率 = 30 ms延迟, 2%丢包率 = 120ms延迟
-// StabilityScore = 100*Delay + 300*Jitter + 3000*10000*lossRate^2
+// StabilityScore = 100*Delay+30*Jitter^2+1500*10000*LossRate^2
+// 1ms 抖动 = 0.3ms 延迟, 10ms 抖动 = 30ms 延迟, 1%丢包率 = 15 ms延迟, 2%丢包率 = 60ms延迟
 func (s PingDelaySet) Less(i, j int) bool {
 	iRate := int64(s[i].getLossRate() * s[i].getLossRate() * 10000)
 	jRate := int64(s[j].getLossRate() * s[j].getLossRate() * 10000)
 	// 精度提高到0.01ms, 1 Milliseconds = 1000 Microseconds
-	si := s[i].Delay.Microseconds()/10 + 3*int64(s[i].Jitter*100) + 3000*iRate
-	sj := s[j].Delay.Microseconds()/10 + 3*int64(s[j].Jitter*100) + 3000*jRate
+	si := s[i].Delay.Microseconds()/10 + int64(30*s[i].Jitter*s[i].Jitter) + 1500*iRate
+	sj := s[j].Delay.Microseconds()/10 + int64(30*s[j].Jitter*s[j].Jitter) + 1500*jRate
 	if si != sj {
 		return si < sj
 	}
