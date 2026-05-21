@@ -4,7 +4,9 @@ on:
   push:
     tags:
       - 'v*'      # 触发条件：推送 v 开头的 tag
-  workflow_dispatch: # 支持手动触发
+
+env:
+  TAG: ${{ github.ref_name }}
 
 permissions:
   contents: write
@@ -149,7 +151,7 @@ jobs:
         run: |
           mkdir -p build/${{ matrix.name }}
           BIN_NAME=cfst${{ matrix.ext }}
-          LDFLAGS="-s -w"
+          LDFLAGS="-s -w -X main.version=$TAG"
           if [ "${{ matrix.old }}" = "true" ]; then
             export GODEBUG=asyncpreemptoff=1
           fi
@@ -177,6 +179,7 @@ jobs:
           path: |
             build/*.zip
             build/*.tar.gz
+          retention-days: 1
 
   release:
     name: Release
@@ -201,7 +204,6 @@ jobs:
         id: tagmsg
         shell: bash
         run: |
-          TAG=${GITHUB_REF_NAME#refs/tags/}
           MSG=$(git for-each-ref refs/tags/$TAG --format='%(contents)')
           if [ -z "$MSG" ]; then
             MSG=$(git log -1 --pretty=%B $TAG)
