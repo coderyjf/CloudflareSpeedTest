@@ -49,6 +49,15 @@ func newIPRanges() *IPRanges {
 	}
 }
 
+func incrementIP(ip net.IP, start, end int) {
+	for i := start; i >= end; i-- {
+		ip[i]++
+		if ip[i] != 0 {
+			return
+		}
+	}
+}
+
 // 如果是单独 IP 则加上子网掩码，反之则获取子网掩码(r.mask)
 func (r *IPRanges) fixIP(ip string) string {
 	// 如果不含有 '/' 则代表不是 IP 段，而是一个单独的 IP，因此需要加上 /32 /128 子网掩码
@@ -112,13 +121,7 @@ func (r *IPRanges) chooseIPv4() {
 			} else { // 随机 IP 的最后一段 0.0.0.X
 				r.appendIPv4(minIP + randIPEndWith(hosts))
 			}
-			r.firstIP[14]++ // 0.0.(X+1).X
-			if r.firstIP[14] == 0 {
-				r.firstIP[13]++ // 0.(X+1).X.X
-				if r.firstIP[13] == 0 {
-					r.firstIP[12]++ // (X+1).X.X.X
-				}
-			}
+			incrementIP(r.firstIP, 14, 12)
 		}
 	}
 }
@@ -127,21 +130,17 @@ func (r *IPRanges) chooseIPv6() {
 	if r.mask == "/128" { // 单个 IP 则无需随机，直接加入自身即可
 		r.appendIP(r.firstIP)
 	} else {
-		var tempIP uint8                  // 临时变量，用于记录前一位的值
-		for r.ipNet.Contains(r.firstIP) { // 只要该 IP 没有超出 IP 网段范围，就继续循环随机
-			r.firstIP[15] = randIPEndWith(255) // 随机 IP 的最后一段
-			r.firstIP[14] = randIPEndWith(255) // 随机 IP 的最后一段
-
-			targetIP := make([]byte, len(r.firstIP))
-			copy(targetIP, r.firstIP)
-			r.appendIP(targetIP) // 加入 IP 地址池
-
-			for i := 13; i >= 0; i-- { // 从倒数第三位开始往前随机
-				tempIP = r.firstIP[i]              // 保存前一位的值
-				r.firstIP[i] += randIPEndWith(255) // 随机 0~255，加到当前位上
-				if r.firstIP[i] >= tempIP {        // 如果当前位的值大于等于前一位的值，说明随机成功了，可以退出该循环
-					break
-				}
+		for r.ipNet.Contains(r.firstIP) {
+			ip := make(net.IP, len(r.firstIP))
+			copy(ip, r.firstIP)
+			for i := 6; i < 16; i++ {
+				ip[i] = randIPEndWith(255)
+			}
+			ip[6] = (r.firstIP[6] & 0xFC) | (ip[6] & 0x03)
+			r.appendIP(ip)
+			r.firstIP[6] += 0x04
+			if r.firstIP[6] == 0 {
+				incrementIP(r.firstIP, 5, 0)
 			}
 		}
 	}
