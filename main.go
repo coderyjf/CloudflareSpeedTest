@@ -60,6 +60,8 @@ https://github.com/coderyjf/CloudflareSpeedTest
         显示结果数量；测速后直接显示指定数量的结果，为 0 时不显示结果直接退出；(默认 10 个)
     -f ip.txt
         IP段数据文件；如路径含有空格请加上引号；支持其他 CDN IP段；(默认 ip.txt)
+    -mask 54
+        指定IPV6挑选子网段；可变相指定要测试的IPV6数量 2^(mask - 文件中IP段掩码)；(默认 54)
     -ip 1.1.1.1,2.2.2.2/24,2606:4700::/32
         指定IP段数据；直接通过参数指定要测速的 IP 段数据，英文逗号分隔；(默认 空)
     -o result.csv
@@ -99,6 +101,7 @@ https://github.com/coderyjf/CloudflareSpeedTest
 	flag.Float64Var(&task.MinSpeed, "sl", 0, "下载速度下限")
 
 	flag.IntVar(&utils.PrintNum, "p", 10, "显示结果数量")
+	flag.IntVar(&task.Mask, "mask", 54, "IPV6挑选子网段")
 	flag.StringVar(&task.IPFile, "f", "ip.txt", "IP段数据文件")
 	flag.StringVar(&task.IPText, "ip", "", "指定IP段数据")
 	flag.StringVar(&utils.Output, "o", "result.csv", "输出结果文件")

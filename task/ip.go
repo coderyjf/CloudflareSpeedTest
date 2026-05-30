@@ -19,6 +19,7 @@ var (
 	// IPFile is the filename of IP Rangs
 	IPFile = defaultInputFile
 	IPText string
+	Mask   = 54
 )
 
 func InitRandSeed() {
@@ -56,6 +57,29 @@ func incrementIP(ip net.IP, start, end int) {
 			return
 		}
 	}
+}
+
+func calcMaskValues(mask int) (byteIndex int, bitOffset int, fixedMask byte, randomMask byte, step byte) {
+	if mask <= 0 || mask > 128 {
+		mask = 54
+	}
+	byteIndex = mask / 8
+	bitOffset = mask % 8
+	if byteIndex >= 16 {
+		byteIndex = 15
+		bitOffset = 8
+	}
+	if bitOffset == 0 {
+		byteIndex -= 1
+		fixedMask = 0xFF
+		randomMask = 0x00
+		step = 0x01
+		return
+	}
+	fixedMask = byte(0xFF << (8 - bitOffset))
+	randomMask = ^fixedMask
+	step = byte(0x01 << (8 - bitOffset))
+	return
 }
 
 // 如果是单独 IP 则加上子网掩码，反之则获取子网掩码(r.mask)
@@ -130,17 +154,18 @@ func (r *IPRanges) chooseIPv6() {
 	if r.mask == "/128" { // 单个 IP 则无需随机，直接加入自身即可
 		r.appendIP(r.firstIP)
 	} else {
+		byteIndex, _, fixedMask, randomMask, step := calcMaskValues(Mask)
 		for r.ipNet.Contains(r.firstIP) {
 			ip := make(net.IP, len(r.firstIP))
 			copy(ip, r.firstIP)
-			for i := 6; i < 16; i++ {
+			for i := byteIndex; i < 16; i++ {
 				ip[i] = randIPEndWith(255)
 			}
-			ip[6] = (r.firstIP[6] & 0xFC) | (ip[6] & 0x03)
+			ip[byteIndex] = (r.firstIP[byteIndex] & fixedMask) | (ip[byteIndex] & randomMask)
 			r.appendIP(ip)
-			r.firstIP[6] += 0x04
-			if r.firstIP[6] == 0 {
-				incrementIP(r.firstIP, 5, 0)
+			r.firstIP[byteIndex] += step
+			if r.firstIP[byteIndex] == 0 {
+				incrementIP(r.firstIP, byteIndex-1, 0)
 			}
 		}
 	}
