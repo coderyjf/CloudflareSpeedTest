@@ -61,7 +61,7 @@ https://github.com/coderyjf/CloudflareSpeedTest
     -f ip.txt
         IP段数据文件；如路径含有空格请加上引号；支持其他 CDN IP段；(默认 ip.txt)
     -mask 54
-        指定IPV6挑选子网段；可变相指定要测试的IPV6数量 2^(mask - 文件中IP段掩码)；(默认 54)
+        指定IP挑选子网段；可变相指定要测试的 IP 数量 2^(mask - 文件中IP段掩码)；(默认 IPV4为24，IPV6为54)
     -ip 1.1.1.1,2.2.2.2/24,2606:4700::/32
         指定IP段数据；直接通过参数指定要测速的 IP 段数据，英文逗号分隔；(默认 空)
     -o result.csv
@@ -69,8 +69,6 @@ https://github.com/coderyjf/CloudflareSpeedTest
 
     -dd
         禁用下载测速；禁用后测速结果会按延迟排序 (默认按下载速度排序)；(默认 启用)
-    -allip
-        测速全部的IP；对 IP 段中的每个 IP (仅支持 IPv4) 进行测速；(默认 每个 /24 段随机测速一个 IP)
 
     -debug
         调试输出模式；会在一些非预期情况下输出更多日志以便判断原因；(默认 关闭)
@@ -107,7 +105,6 @@ https://github.com/coderyjf/CloudflareSpeedTest
 	flag.StringVar(&utils.Output, "o", "result.csv", "输出结果文件")
 
 	flag.BoolVar(&task.Disable, "dd", false, "禁用下载测速")
-	flag.BoolVar(&task.TestAll, "allip", false, "测速全部 IP")
 
 	flag.BoolVar(&utils.Debug, "debug", false, "调试输出模式")
 

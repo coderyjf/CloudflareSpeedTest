@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -14,8 +13,6 @@ import (
 const defaultInputFile = "ip.txt"
 
 var (
-	// TestAll test all ip
-	TestAll = false
 	// IPFile is the filename of IP Rangs
 	IPFile = defaultInputFile
 	IPText string
@@ -30,11 +27,11 @@ func isIPv4(ip string) bool {
 	return strings.Contains(ip, ".")
 }
 
-func randIPEndWith(num byte) byte {
+func randIPEndWith(num int) byte {
 	if num == 0 { // 对于 /32 这种单独的 IP
 		return byte(0)
 	}
-	return byte(rand.Intn(int(num)))
+	return byte(rand.Intn(num))
 }
 
 type IPRanges struct {
@@ -60,9 +57,6 @@ func incrementIP(ip net.IP, start, end int) {
 }
 
 func calcMaskValues(mask int) (byteIndex int, bitOffset int, fixedMask byte, randomMask byte, step byte) {
-	if mask <= 0 || mask > 128 {
-		mask = 54
-	}
 	byteIndex = mask / 8
 	bitOffset = mask % 8
 	if byteIndex >= 16 {
@@ -106,51 +100,39 @@ func (r *IPRanges) parseCIDR(ip string) {
 	}
 }
 
-func (r *IPRanges) appendIPv4(d byte) {
-	r.appendIP(net.IPv4(r.firstIP[12], r.firstIP[13], r.firstIP[14], d))
-}
-
 func (r *IPRanges) appendIP(ip net.IP) {
 	r.ips = append(r.ips, &net.IPAddr{IP: ip})
 }
 
-// 返回第四段 ip 的最小值及可用数目
-func (r *IPRanges) getIPRange() (minIP, hosts byte) {
-	minIP = r.firstIP[15] & r.ipNet.Mask[3] // IP 第四段最小值
-
-	// 根据子网掩码获取主机数量
-	m := net.IPv4Mask(255, 255, 255, 255)
-	for i, v := range r.ipNet.Mask {
-		m[i] ^= v
-	}
-	total, _ := strconv.ParseInt(m.String(), 16, 32) // 总可用 IP 数
-	if total > 255 {                                 // 矫正 第四段 可用 IP 数
-		hosts = 255
-		return
-	}
-	hosts = byte(total)
-	return
-}
-
 func (r *IPRanges) chooseIPv4() {
+	if Mask > 32 || Mask <= 0 {
+		Mask = 24
+	}
 	if r.mask == "/32" { // 单个 IP 则无需随机，直接加入自身即可
 		r.appendIP(r.firstIP)
 	} else {
-		minIP, hosts := r.getIPRange()    // 返回第四段 IP 的最小值及可用数目
+		byteIndex, _, fixedMask, randomMask, step := calcMaskValues(Mask)
+		byteIndex += 12
 		for r.ipNet.Contains(r.firstIP) { // 只要该 IP 没有超出 IP 网段范围，就继续循环随机
-			if TestAll { // 如果是测速全部 IP
-				for i := 0; i <= int(hosts); i++ { // 遍历 IP 最后一段最小值到最大值
-					r.appendIPv4(byte(i) + minIP)
-				}
-			} else { // 随机 IP 的最后一段 0.0.0.X
-				r.appendIPv4(minIP + randIPEndWith(hosts))
+			ip := make(net.IP, len(r.firstIP))
+			copy(ip, r.firstIP)
+			for i := byteIndex; i < 16; i++ {
+				ip[i] = randIPEndWith(256)
 			}
-			incrementIP(r.firstIP, 14, 12)
+			ip[byteIndex] = (r.firstIP[byteIndex] & fixedMask) | (ip[byteIndex] & randomMask)
+			r.appendIP(ip)
+			r.firstIP[byteIndex] += step
+			if r.firstIP[byteIndex] == 0 {
+				incrementIP(r.firstIP, byteIndex-1, 12)
+			}
 		}
 	}
 }
 
 func (r *IPRanges) chooseIPv6() {
+	if Mask > 128 || Mask <= 0 {
+		Mask = 54
+	}
 	if r.mask == "/128" { // 单个 IP 则无需随机，直接加入自身即可
 		r.appendIP(r.firstIP)
 	} else {
@@ -159,7 +141,7 @@ func (r *IPRanges) chooseIPv6() {
 			ip := make(net.IP, len(r.firstIP))
 			copy(ip, r.firstIP)
 			for i := byteIndex; i < 16; i++ {
-				ip[i] = randIPEndWith(255)
+				ip[i] = randIPEndWith(256)
 			}
 			ip[byteIndex] = (r.firstIP[byteIndex] & fixedMask) | (ip[byteIndex] & randomMask)
 			r.appendIP(ip)
